@@ -1,0 +1,13 @@
+{
+  "isExample": true,
+  "note": "EXEMPLE — quantités et prix unitaires FICTIFS, saisis pour la démonstration. Une erreur volontaire figure ligne 103 (montant saisi faux).",
+  "tvaRate": null,
+  "rows": [
+    { "code": "001", "designation": "Installation de chantier", "unite": "fft", "quantite": 1, "prixUnitaire": 2500000, "montant": 2500000 },
+    { "code": "002", "designation": "Études topographiques", "unite": "fft", "quantite": 1, "prixUnitaire": 1200000, "montant": 1200000 },
+    { "code": "103", "designation": "Abattage d'arbres", "unite": "u", "quantite": 45, "prixUnitaire": 15000, "montant": 765000 },
+    { "code": "110", "designation": "Mise en forme de la plateforme", "unite": "m2", "quantite": 32000, "prixUnitaire": 350, "montant": 11200000 },
+    { "code": "115a", "designation": "Couche de roulement en grave latéritique", "unite": "m3", "quantite": 2400, "prixUnitaire": 9500, "montant": 22800000 }
+  ],
+  "totalHtDeclare": 38465000
+}

@@ -48,15 +48,33 @@ async function corpusReferenceKeys(): Promise<Set<string>> {
   return keys;
 }
 
-export type ReferenceCheck = { text: string; unverified: string[]; removed: string[] };
+export type ReferenceCheck = { text: string; unverified: string[]; removed: string[]; articles?: string[] };
+
+/** Gabarits vides : « décret n° … / … », « loi n° ___ », « arrêté n° …/2020 » → retirés (jamais affichés comme référence). */
+const KIND = String.raw`(?:lois?(?:[- ]cadre)?|d[ée]crets?|ordonnances?|arr[êe]t[ée]s?|d[ée]cisions?|circulaires?)`;
+const HOLE = String.raw`(?:…|\.{3}|_{2,})`;
+const PLACEHOLDER_REF_RE = new RegExp(
+  String.raw`\b${KIND}\s+(?:(?:n\s*[°ºo]\.?|no\.?|num[ée]ro)\s*${HOLE}(?:\s*[/\-\u2010-\u2015]\s*(?:${HOLE}|\d{1,4}))*|(?:(?:n\s*[°ºo]\.?|no\.?)\s*)?(?:${HOLE}|\d{2,4})\s*[/\-\u2010-\u2015]\s*${HOLE}(?:\s*[/\-\u2010-\u2015]\s*(?:${HOLE}|\d{1,4}))*)`,
+  "giu",
+);
+
+export function stripPlaceholderRefs(answer: string): { text: string; removed: string[] } {
+  const removed: string[] = [];
+  const text = answer.replace(PLACEHOLDER_REF_RE, (full) => {
+    removed.push(full.trim());
+    return "[référence non vérifiée retirée]";
+  });
+  return { text, removed };
+}
 
 /** Vérifie (et assainit) les références de textes d'une réponse. `extraKnown` : textes de confiance supplémentaires (extraits cités). */
 export function checkReferencesWith(answer: string, known: Set<string>, citedTexts: string[] = []): ReferenceCheck {
   const keys = new Set(known);
   for (const t of citedTexts) for (const k of pairsOf(t)) keys.add(k);
   const unverified: string[] = [];
-  const removed: string[] = [];
-  const text = answer.replace(REF_RE, (full, _kind: string, _sep: string, num: string) => {
+  const stripped = stripPlaceholderRefs(answer);
+  const removed: string[] = [...stripped.removed];
+  const text = stripped.text.replace(REF_RE, (full, _kind: string, _sep: string, num: string) => {
     if (isPlaceholder(num)) {
       removed.push(full.trim());
       return "[référence non vérifiée retirée]";
@@ -77,9 +95,33 @@ export function checkReferencesWith(answer: string, known: Set<string>, citedTex
   };
 }
 
+/** « article 12 de la loi n° 2010/013 » : si la loi est dans le corpus, l'article doit y figurer (contrôle déterministe). */
+const ARTICLE_RE = /\b(articles?|art\.)\s+(\d{1,4})(?:er|e)?\b([^.\n]{0,60}?)\b(lois?(?:[- ]cadre)?|d[ée]crets?|ordonnances?)\s+(?:n\s*[°ºo]\.?\s*)?(\d{2,4}\s*[/\-\u2010-\u2015]\s*\d{1,4})/giu;
+
+export async function checkArticles(answer: string): Promise<{ text: string; flagged: string[] }> {
+  if (!ARTICLE_RE.test(answer)) return { text: answer, flagged: [] };
+  ARTICLE_RE.lastIndex = 0;
+  const { loadCorpusDocs, resolveDoc, verifyCitation } = await import("@/lib/engine/citations");
+  const docs = await loadCorpusDocs();
+  const flagged: string[] = [];
+  const text = answer.replace(ARTICLE_RE, (full: string, _a: string, num: string, _mid: string, kind: string, ref: string) => {
+    const doc = resolveDoc(`${kind} ${ref}`, docs);
+    if (!doc) return full; // texte absent : déjà signalé par le contrôle des références
+    const r = verifyCitation({ ref: doc.id, article: num }, docs);
+    if (r.checks.article) return full;
+    flagged.push(`article ${num} — ${doc.title}`);
+    return `${full} (⚠️ article introuvable dans le texte du corpus)`;
+  });
+  return { text, flagged };
+}
+
 export async function checkReferences(answer: string, citations: Pick<Citation, "excerpt" | "title" | "legalTitle" | "file">[] = []): Promise<ReferenceCheck> {
   const known = await corpusReferenceKeys();
-  return checkReferencesWith(answer, known, citations.map((c) => `${c.title ?? ""} ${c.legalTitle ?? ""} ${c.file ?? ""} ${c.excerpt ?? ""}`));
+  const base = checkReferencesWith(answer, known, citations.map((c) => `${c.title ?? ""} ${c.legalTitle ?? ""} ${c.file ?? ""} ${c.excerpt ?? ""}`));
+  const art = await checkArticles(base.text);
+  if (!art.flagged.length) return base;
+  const note = `\n\n> ⚠️ Contrôle des articles : ${art.flagged.join(" ; ")} — numéro d'article absent du texte officiel du corpus.`;
+  return { ...base, text: art.text + note, articles: art.flagged };
 }
 
 export const REFERENCE_RULE =

@@ -38,6 +38,7 @@ import { marketModule as market } from "@/lib/modules/entrepreneur/agent";
 import { agentModule as etat } from "@/lib/modules/etat/agent";
 import { agentModule as entreprise } from "@/lib/modules/entreprise/agent";
 import { agentModule as memoire } from "@/lib/modules/memoire/agent";
+import { agentModule as appelsOffres } from "@/lib/packs/appels-offres-cm/agent";
 
 const MODULES: AgentModule[] = [
   { id: "core", tools: CORE_TOOLS },
@@ -53,6 +54,7 @@ const MODULES: AgentModule[] = [
   etat,
   entreprise,
   memoire,
+  appelsOffres,
 ];
 
 export const AGENT_MODULES = MODULES;

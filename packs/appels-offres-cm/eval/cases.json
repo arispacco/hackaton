@@ -1,0 +1,41 @@
+{
+  "pack": "appels-offres-cm",
+  "description": "Jeu d'évaluation : entrées réelles (avis ARMP publics, vérifiés le 2026-10-19) ou exemples, avec attendus vérifiables lus dans le texte source.",
+  "cases": [
+    {
+      "id": "sangmelima-fiche",
+      "fixture": "fixtures/armp-ao-65436-sangmelima-pistes.txt",
+      "expect": {
+        "reference": "014/AONO/CS/SIGAMP/CDPM/2026",
+        "dateLimiteIso": "2026-11-11T14:00:00+01:00",
+        "cautionMontant": 3029188,
+        "coutPrevisionnel": 151459425,
+        "piecesIncluent": ["caution", "charte", "decl_abandon", "bpu", "dqe", "categorisation"],
+        "eliminatoiresMin": 8,
+        "montantsIncoherents": 0
+      }
+    },
+    {
+      "id": "guider-fiche",
+      "fixture": "fixtures/armp-ao-65438-guider-bas-fond.txt",
+      "expect": {
+        "dateLimiteIso": "2026-11-10T13:00:00+01:00",
+        "modeDepot": "COLEPS",
+        "cautionMontant": 3500000,
+        "limitesMo": [5, 15, 5],
+        "formats": ["PDF", "JPEG"],
+        "montantsIncoherents": 1,
+        "piecesIncluent": ["caution", "recepisse_cdec", "references", "materiel"]
+      }
+    },
+    {
+      "id": "bpu-exemple",
+      "fixture": "fixtures/bpu-exemple.json",
+      "expect": { "ecartsLignes": ["103"], "totalHt": 38375000 }
+    },
+    {
+      "id": "corpus-code-marches",
+      "expect": { "coverage": { "code_marches": "mentionne_seulement", "avis_ao": "couvert" } }
+    }
+  ]
+}

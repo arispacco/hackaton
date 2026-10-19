@@ -2,7 +2,7 @@ import {
   Activity, AlertTriangle, BarChart3, Bot, CalendarCheck, ClipboardList, FileSearch, FileText, FolderLock,
   Gavel, GraduationCap, HandCoins, Inbox, Landmark, Lightbulb, LineChart, ListTodo, MessagesSquare, Mic, Plug, Radar, Scale,
   ShieldCheck, ShieldAlert, Sparkles, Store, Truck, Users, UserSearch, Wallet, BadgeCheck, Brain, SlidersHorizontal,
-  LayoutDashboard, type LucideIcon,
+  LayoutDashboard, Boxes, Route, FileCheck2, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -14,7 +14,7 @@ import {
  *    tant qu'un module n'a pas de composant, un emplacement « en construction » s'affiche.
  *  - pour ajouter un module : une ligne dans la liste de son niveau (ici) + une ligne dans module-slots.tsx.
  */
-export type Level = "general" | "entrepreneur" | "entreprise" | "etat" | "connecteurs";
+export type Level = "general" | "entrepreneur" | "entreprise" | "etat" | "packs" | "connecteurs";
 
 export type NavEntry = {
   id: string;
@@ -35,6 +35,7 @@ export const LEVELS: { id: Level; label: string; hint: string }[] = [
   { id: "entrepreneur", label: "Entrepreneur", hint: "De l'idée à la startup opérationnelle" },
   { id: "entreprise", label: "Entreprise", hint: "Données, finances, risques, équipe" },
   { id: "etat", label: "État (démo)", hint: "Macroéconomie et crise — données fictives" },
+  { id: "packs", label: "Packs métier", hint: "Moteur d'agents par métier : missions vérifiées, approbations" },
   { id: "connecteurs", label: "Connecteurs", hint: "MCP et outils externes" },
 ];
 
@@ -85,5 +86,8 @@ export const NAV: NavEntry[] = [
   { id: "connecteurs", label: "Connecteurs MCP", icon: Plug, level: "connecteurs", kind: "module", team: "mcp-connecteurs", description: "Connexions réelles (MCP, API officielles) avec bascule démo." },
   // ↓ nouveaux onglets : une ligne par entrée, ajoutée en fin de liste
   { id: "bas-debit", label: "Bas débit & vocal", icon: Mic, level: "general", kind: "module", team: "memoire", description: "Interface allégée, réponses courtes, file hors ligne, dictée et lecture vocale." },
+  { id: "packs", label: "Packs", icon: Boxes, level: "packs", kind: "module", team: "moteur", description: "Registre des packs métier, couverture du corpus, évaluation, générateur de brouillons." },
+  { id: "ao", label: "Appels d'offres (CM)", icon: FileCheck2, level: "packs", kind: "module", team: "moteur", description: "Lecture de DAO, matrice de conformité, recalcul du bordereau, coffre-fort de pièces." },
+  { id: "missions", label: "Missions & approbations", icon: Route, level: "packs", kind: "module", team: "moteur", description: "Plan, preuves, décisions humaines, file d'approbation, journal d'audit chaîné." },
 ];
 

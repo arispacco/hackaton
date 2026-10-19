@@ -4,6 +4,22 @@ import path from "node:path";
 import { buildSeed } from "./seed";
 import { resetModuleStates } from "@/lib/modules/state";
 import type { WorkspaceData } from "./types";
+import type { StorageAdapter } from "@/lib/engine/storage/types";
+
+/** Postgres actif ? (DATABASE_URL ou POSTGRES_URL posée par l'intégration Neon de Vercel.) */
+const pgEnabled = () => Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL) && !process.env.WORKSPACE_DB_PATH;
+const PG_SCOPE = "_workspace";
+let pgOverride: StorageAdapter | null = null;
+async function pgStore(): Promise<StorageAdapter> {
+  if (pgOverride) return pgOverride;
+  const { getStorage } = await import("@/lib/engine/storage");
+  return getStorage();
+}
+/** Réservé aux tests : force un adaptateur (ex. PGlite) pour le document workspace. */
+export function __setWorkspaceAdapter(adapter: StorageAdapter | null) {
+  pgOverride = adapter;
+}
+const usePg = () => Boolean(pgOverride) || pgEnabled();
 
 /**
  * Persistance fichier JSON (zéro dépendance) derrière une API transactionnelle.
@@ -81,12 +97,31 @@ async function persist(file: string, data: WorkspaceData) {
 
 /** Lecture seule (copie profonde pour éviter les mutations accidentelles). */
 export async function readData(): Promise<WorkspaceData> {
+  if (usePg()) {
+    // Postgres : lecture fraîche à chaque appel (plusieurs instances serverless partagent la même base).
+    const store = await pgStore();
+    const doc = await store.read(PG_SCOPE, (tx) => tx.get<WorkspaceData>("doc", "main"));
+    if (doc) return migrate(doc);
+    return withData((d) => structuredClone(d));
+  }
   await queue;
   return structuredClone(await load());
 }
 
 /** Exécute une mutation sérialisée puis persiste le résultat. */
 export function withData<T>(mutator: (data: WorkspaceData) => T | Promise<T>): Promise<T> {
+  if (usePg()) {
+    // Postgres : transaction + verrou consultatif ⇒ mutations sérialisées entre instances.
+    return pgStore().then((store) =>
+      store.transaction(PG_SCOPE, async (tx) => {
+        const existing = await tx.get<WorkspaceData>("doc", "main");
+        const data = existing ? migrate(existing) : buildSeed();
+        const result = await mutator(data);
+        await tx.put("doc", "main", data);
+        return result;
+      }),
+    );
+  }
   const run = queue.then(async () => {
     const data = await load();
     const result = await mutator(data);

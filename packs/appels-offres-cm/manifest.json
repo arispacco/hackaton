@@ -1,0 +1,85 @@
+{
+  "id": "appels-offres-cm",
+  "version": "0.1.0",
+  "name": "Appels d'offres publics — Cameroun",
+  "description": "Préparer une réponse à un appel d'offres public camerounais : lecture du DAO, matrice de conformité, recalcul du bordereau, coffre-fort de pièces avec alertes, assemblage du dossier. Le dépôt sur COLEPS reste humain.",
+  "audience": ["PME du BTP", "bureaux d'études", "architectes"],
+  "status": "valide",
+  "locale": "fr-CM",
+  "procedures": [
+    {
+      "id": "preparer_offre",
+      "title": "Préparer une offre à partir d'un DAO",
+      "description": "À partir du texte d'un DAO ou d'un avis d'appel d'offres, produire la fiche d'une page, la matrice de conformité, le bordereau recalculé et le dossier assemblé, prêt pour un dépôt humain.",
+      "inputs": [
+        { "id": "texte", "label": "Texte du DAO ou de l'avis (collé ou extrait d'un PDF)", "required": true },
+        { "id": "titre", "label": "Titre du DAO", "required": false },
+        { "id": "daoId", "label": "Identifiant du DAO", "required": false },
+        { "id": "bpu", "label": "Bordereau des prix (lignes quantité × prix unitaire)", "required": false }
+      ],
+      "deliverables": [
+        "Fiche DAO d'une page avec citations vérifiées",
+        "Matrice de conformité pièces × coffre-fort",
+        "Bordereau des prix recalculé",
+        "Demandes de renouvellement (brouillons, envoi simulé après approbation)",
+        "Dossier assemblé dans l'ordre demandé",
+        "Dépôt COLEPS préparé (exécuté par un humain)"
+      ],
+      "outOfScope": [
+        "Dépôt de l'offre sur COLEPS (action humaine)",
+        "Paiement de la caution ou des frais d'achat du DAO",
+        "Signature des pièces",
+        "Avis juridique sur le code des marchés publics (texte absent du corpus)"
+      ],
+      "tokenBudget": 6000,
+      "steps": [
+        { "id": "lire_dao", "title": "Lire le DAO et produire la fiche", "action": "ao_lire_dao", "input": { "texte": "$input.texte", "titre": "$input.titre", "daoId": "$input.daoId" }, "maxAttempts": 1, "criteria": [
+          { "id": "fiche", "label": "Éléments essentiels extraits", "verifier": "fiche_essentielle" },
+          { "id": "cit", "label": "Citations résolues dans le DAO", "verifier": "citations_resolues" },
+          { "id": "montants", "label": "Montants chiffres / lettres", "verifier": "montants_lettres" }
+        ] },
+        { "id": "matrice", "title": "Matrice de conformité", "action": "ao_matrice", "input": { "sheet": "$step.lire_dao.sheet" }, "criteria": [
+          { "id": "couverture", "label": "Chaque pièce exigée a un statut", "verifier": "matrice_couvre_pieces" }
+        ] },
+        { "id": "bpu", "title": "Recalcul du bordereau des prix", "action": "ao_recalcul_bpu", "when": "$input.bpu", "input": { "bpu": "$input.bpu" }, "criteria": [
+          { "id": "recalcul", "label": "Recalcul des montants", "verifier": "recalcul_coherent" }
+        ] },
+        { "id": "renouvellements", "title": "Demandes de renouvellement des pièces expirées", "action": "ao_demande_renouvellement", "risk": "envoyer", "when": "$step.matrice.renouveler", "input": { "pieces": "$step.matrice.renouveler" }, "criteria": [] },
+        { "id": "assembler", "title": "Assembler le dossier et vérifier la complétude", "action": "ao_assembler", "input": { "sheet": "$step.lire_dao.sheet" }, "maxAttempts": 1, "criteria": [
+          { "id": "completude", "label": "Complétude par rapport à la checklist", "verifier": "completude" }
+        ] },
+        { "id": "depot", "title": "Dépôt sur COLEPS (humain)", "action": "ao_depot_coleps", "risk": "payer_deposer", "input": { "sheet": "$step.lire_dao.sheet", "dossier": "$step.assembler.dossier" }, "criteria": [] }
+      ]
+    }
+  ],
+  "templates": [
+    { "id": "fiche-dao", "title": "Fiche DAO d'une page", "file": "templates/fiche-dao.md", "description": "Structure de la fiche produite par le lecteur de DAO." },
+    { "id": "lettre-soumission", "title": "Lettre de soumission (trame)", "file": "templates/lettre-soumission.md", "description": "Trame indicative ; utiliser en priorité le modèle fourni dans le DAO." },
+    { "id": "declaration-non-abandon", "title": "Déclaration sur l'honneur de non-abandon de chantier (trame)", "file": "templates/declaration-non-abandon.md", "description": "Trame indicative ; utiliser en priorité le modèle fourni dans le DAO." },
+    { "id": "demande-renouvellement", "title": "Demande de renouvellement de pièce", "file": "templates/demande-renouvellement.md", "description": "Courrier type adressé à l'administration émettrice (envoi simulé après approbation)." }
+  ],
+  "corpus": {
+    "categories": ["Appel d'offre"],
+    "needs": [
+      { "id": "avis_ao", "label": "Avis d'appels d'offres publiés (exemples réels)", "match": ["avis d'appel d'offres"], "why": "Modèles réels de structure d'avis." },
+      { "id": "code_marches", "label": "Code des marchés publics (texte intégral)", "match": ["code des marches publics"], "why": "Règles de passation : à citer seulement si le texte intégral est dans le corpus." },
+      { "id": "coleps", "label": "Textes sur la soumission électronique COLEPS", "match": ["coleps"], "why": "Règles de dépôt en ligne." },
+      { "id": "cautionnement", "label": "Textes sur le cautionnement de soumission et la consignation CDEC", "match": ["cautionnement de soumission", "caisse des depots et consignations"], "why": "Validité et forme de la caution." },
+      { "id": "categorisation", "label": "Textes sur la catégorisation / classification des entreprises du BTP", "match": ["categorisation des entreprises", "classification des entreprises"], "why": "Critère éliminatoire fréquent." }
+    ]
+  },
+  "tools": ["ao_lire_dao", "ao_matrice", "ao_recalcul_bpu", "ao_demande_renouvellement", "ao_assembler", "ao_depot_coleps", "rechercher_textes_juridiques", "creer_tache"],
+  "verifiers": ["fiche_essentielle", "montants_lettres", "matrice_couvre_pieces", "recalcul_coherent", "completude", "citations_resolues"],
+  "evaluation": { "file": "eval/cases.json", "cases": 4 },
+  "fixtures": [
+    { "id": "armp-ao-65436", "title": "AAO n°014/AONO/CS/SIGAMP/CDPM/2026 — pistes agricoles, Sangmélima", "file": "fixtures/armp-ao-65436-sangmelima-pistes.txt", "origin": "source_publique", "source": "https://armp.cm/details?type_publication=AO&id_publication=65436", "verifiedAt": "2026-10-19" },
+    { "id": "armp-ao-65438", "title": "AAO PIDACC/BN — aménagement d'un bas-fond, Guider", "file": "fixtures/armp-ao-65438-guider-bas-fond.txt", "origin": "source_publique", "source": "https://armp.cm/details?type_publication=AO&id_publication=65438", "verifiedAt": "2026-10-19" },
+    { "id": "bpu-exemple", "title": "Bordereau des prix — EXEMPLE (quantités et prix fictifs)", "file": "fixtures/bpu-exemple.json", "origin": "exemple" }
+  ],
+  "humanOnly": ["Dépôt sur COLEPS", "Paiement de la caution et des frais de DAO", "Signature des pièces"],
+  "notes": [
+    "Les avis ARMP sont des textes publics ; numéros de téléphone, adresses e-mail et noms de signataires ont été retirés.",
+    "Le DAO complet (pièces détaillées, modèles officiels) n'a pas pu être téléchargé depuis pridesoft.armp.cm (délai dépassé le 2026-10-19) : la fiche est tirée de l'avis publié.",
+    "Le code des marchés publics n'est pas dans le corpus : il n'est jamais présenté comme cité."
+  ]
+}

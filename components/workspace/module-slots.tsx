@@ -35,4 +35,7 @@ export const MODULE_SLOTS: Record<string, ComponentType<TabProps>> = {
   reunions: load(() => import("@/components/modules/memoire/ReunionsPanel")),
   score: load(() => import("@/components/modules/memoire/ScorePanel")),
   "bas-debit": load(() => import("@/components/modules/memoire/BasDebitPanel")),
+  packs: load(() => import("@/components/modules/packs/PacksPanel")),
+  ao: load(() => import("@/components/modules/packs/AoPanel")),
+  missions: load(() => import("@/components/modules/packs/MissionsPanel")),
 };

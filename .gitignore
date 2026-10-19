@@ -17,3 +17,6 @@ data/corpus-officiel.json
 .env*
 !.env.example
 data/*.pem
+
+# Repli JSON du moteur de packs
+data/engine/

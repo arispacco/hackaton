@@ -30,6 +30,7 @@ export const TOOL_GROUPS: { id: string; test: RegExp; tools?: string[]; module?:
   { id: "market", module: "market", test: /\b(b2b|marketplace|place de marche|partenaires?)\b/ },
   { id: "etat", module: "etat", test: /\b(macro\w*|crise|citoyens?|politiques? publiques?|inflation|pib|chomage|gouvernement|ministere|communique)\b/ },
   { id: "entreprise", module: "entreprise", test: /\b(donnees|csv|excel|xlsx|importer|tableau de bord|dashboard|kpi|anomalies?|rapports?|tresorerie|budget|cash|runway|depenses|revenus|appels? d.offres|marches? publics?|risques?|stress|scenarios?|due diligence|data ?room|salle de donnees)\b/ },
+  { id: "appels_offres", module: "appels_offres", test: /\b(dao|appels? d.offres|soumission\w*|caution\w*|coleps|armp|bordereau|bpu|dqe|marches? publics?|pieces administratives|coffre)\b/ },
   { id: "memoire", module: "memoire", test: /\b(memoire|souviens|rappelle-toi|decisions?|reunions?|compte rendu|ce que j.ai manque|score co-?founder|attestation|vocal|audio)\b/ },
 ];
 

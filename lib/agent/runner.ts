@@ -8,16 +8,22 @@ import { compactSchema, LOAD_TOOLS, selectTools } from "./tool-selection";
 import { checkReferences, REFERENCE_RULE } from "@/lib/legal/reference-check";
 import type { AgentTool, ToolContext } from "./tools";
 import { connectorAgentTools } from "@/lib/modules/mcp/agent-tools";
+import { runWithAiSdk } from "./runner-ai-sdk";
+
+/** Moteur de boucle : « legacy » (défaut, fetch maison) ou « ai-sdk » (Vercel AI SDK) via AGENT_RUNNER. */
+export function agentRunner(): "legacy" | "ai-sdk" {
+  return (process.env.AGENT_RUNNER || "").toLowerCase() === "ai-sdk" ? "ai-sdk" : "legacy";
+}
 
 export type AgentTurn = { role: "user" | "assistant"; content: string };
 export type AgentReply = { answer: string; toolTrace: ToolTrace[]; citations: Citation[]; grounding: ReplyGrounding | null; mode: "llm" | "demo"; provider?: string; notice?: string };
 
 
-type Provider =
+export type Provider =
   | { kind: "openai"; name: string; url: string; key: string; model: string }
   | { kind: "gemini"; name: string; key: string; model: string };
 
-const MAX_STEPS = 6;
+export const MAX_STEPS = 6;
 
 /** Fournisseurs avec function-calling, dans l'ordre de préférence. Aucun secret n'est renvoyé au client. */
 export function resolveProviders(): Provider[] {
@@ -72,7 +78,7 @@ export function estimateTokens(value: unknown): number {
 export const MAX_INPUT_TOKENS = 6000;
 const HISTORY_TURNS = 6;
 const HISTORY_CHARS = 900;
-const TOOL_RESULT_CHARS = 2400;
+export const TOOL_RESULT_CHARS = 2400;
 
 export function compactHistory(history: AgentTurn[]): AgentTurn[] {
   const recent = history.slice(-HISTORY_TURNS);
@@ -94,7 +100,7 @@ export function fitBudget(messages: Record<string, unknown>[], tools: unknown[],
   return messages;
 }
 
-function truncate(value: unknown, max = 6000): string {
+export function truncate(value: unknown, max = 6000): string {
   const s = JSON.stringify(value);
   return s.length > max ? `${s.slice(0, max)}…(tronqué)` : s;
 }
@@ -106,7 +112,7 @@ export function stripNulls<T>(value: T): T {
   return value;
 }
 
-async function execTool(name: string, rawArgs: Record<string, unknown>, ctx: ToolContext, trace: ToolTrace[]) {
+export async function execTool(name: string, rawArgs: Record<string, unknown>, ctx: ToolContext, trace: ToolTrace[]) {
   const args = stripNulls(rawArgs ?? {});
   const tool = TOOL_MAP.get(name) ?? ctx.extraTools?.find((t) => t.name === name);
   if (!tool) {
@@ -139,7 +145,7 @@ export async function preGround(question: string, ctx: ToolContext, trace: ToolT
  * Paliers gratuits (ex. Groq : 8K jetons/minute) : la boucle d'outils enchaîne plusieurs appels
  * et dépasse vite le quota. Sur 429, on attend le délai `retry-after` (plafonné) puis on réessaie.
  */
-async function fetchWithRateLimitRetry(url: string, init: RequestInit, attempts = 3): Promise<Response> {
+export async function fetchWithRateLimitRetry(url: string, init: RequestInit, attempts = 3): Promise<Response> {
   let res: Response | null = null;
   for (let i = 0; i < attempts; i += 1) {
     res = await fetch(url, { ...init, signal: AbortSignal.timeout(45000) });
@@ -306,7 +312,7 @@ export async function runAgent(company: Company, history: AgentTurn[]): Promise<
     const trace: ToolTrace[] = [];
     try {
       const grounding = await preGround(question, ctx, trace);
-      const answer = provider.kind === "openai" ? await runOpenAI(provider, company, history, ctx, trace, grounding) : await runGemini(provider, company, history, ctx, trace, grounding);
+      const answer = agentRunner() === "ai-sdk" ? await runWithAiSdk(provider, company, history, ctx, trace, grounding) : provider.kind === "openai" ? await runOpenAI(provider, company, history, ctx, trace, grounding) : await runGemini(provider, company, history, ctx, trace, grounding);
       if (answer) {
         // Post-contrôle : aucune référence de texte hors corpus / hors extraits cités.
         const checked = await checkReferences(answer, ctx.citations);

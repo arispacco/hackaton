@@ -82,3 +82,22 @@ describe("parité runner maison ↔ runner AI SDK (LLM simulé)", () => {
     }, 60000);
   }
 });
+
+describe("ai-sdk · Groq refuse reasoning_content (régression HTTP 400)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it("ne renvoie jamais le raisonnement dans les messages assistant après un appel d'outil", async () => {
+    const strict: Script = (n, body) => {
+      const bad = (body.messages ?? []).some((m) => m.role === "assistant" && ("reasoning_content" in m || "reasoning" in m));
+      if (bad) return { status: 400, json: { error: { message: "property 'reasoning_content' is unsupported", type: "invalid_request_error" } } };
+      return n === 1
+        ? oa({ content: null, reasoning: "Je dois créer une tâche.", tool_calls: [call("c1", "creer_tache", { titre: "Appeler la banque", echeance: null })] })
+        : oa({ content: "C'est noté, tâche créée.", reasoning: "Fini." });
+    };
+    for (const runner of ["legacy", "ai-sdk"] as const) {
+      const { reply, bodies } = await run(runner, { GROQ_API_KEY: "k", LLM_PROVIDER: "groq" }, strict, "Rappelle-moi d'appeler la banque");
+      expect(reply.answer, runner).toContain("tâche créée");
+      expect(reply.notice, runner).toBeFalsy();
+      expect(bodies.length, runner).toBeGreaterThanOrEqual(2);
+    }
+  });
+});

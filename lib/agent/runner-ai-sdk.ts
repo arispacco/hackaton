@@ -59,6 +59,19 @@ export function fitModelBudget(messages: ModelMessage[], schemas: unknown[], bud
   return messages;
 }
 
+/**
+ * Groq (et d'autres API compatibles OpenAI) refusent `reasoning_content` dans les messages assistant renvoyés
+ * après un appel d'outil (HTTP 400). On retire donc les parties « reasoning » de l'historique — le runner maison
+ * ne renvoie jamais le raisonnement non plus (parité).
+ */
+export function stripReasoning(messages: ModelMessage[]): ModelMessage[] {
+  return messages.map((m) => {
+    if (m.role !== "assistant" || typeof m.content === "string") return m;
+    const content = m.content.filter((part) => part.type !== "reasoning");
+    return content.length === m.content.length ? m : { ...m, content };
+  });
+}
+
 function toToolSet(tools: AgentTool[], ctx: ToolContext, trace: ToolTrace[], nullable: boolean, onLoad: (module: string) => string | null): ToolSet {
   const set: ToolSet = {};
   for (const t of tools) {
@@ -129,7 +142,7 @@ export async function runWithAiSdk(p: Provider, company: Company, history: Agent
         const active = selected.map((t) => t.name);
         if (!openai) return { activeTools: active };
         const schemas = selected.map((t) => compactSchema(t, nullableOptionals));
-        return { activeTools: active, messages: fitModelBudget(msgs, [systemPrompt(company), ...schemas]) };
+        return { activeTools: active, messages: fitModelBudget(stripReasoning(msgs), [systemPrompt(company), ...schemas]) };
       },
     });
     const last = result.steps.at(-1);
